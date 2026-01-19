@@ -18,3 +18,18 @@ export type Article = {
   language: string;
   timestamp: number;
 };
+
+// types.ts
+export interface WordWithRomanization {
+  char: string;
+  romanization: string;
+  showRomanization: boolean;
+  id: string;
+}
+
+// export interface RenderedContent {
+//   type: 'english' | 'target';
+//   id: string;
+//   text?: string; // For english paragraphs
+//   words?: WordWithRomanization[]; // For target language paragraphs
+// }

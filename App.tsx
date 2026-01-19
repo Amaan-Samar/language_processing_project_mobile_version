@@ -2,13 +2,33 @@ import './global.css';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Animated, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import InputScreen from './screens/InputScreen';
 import ReaderScreen from './screens/ReaderScreen';
 import { useArticleStorage } from './hooks/useArticleStorage';
 import { useArticleProcessor } from './hooks/useArticleProcessor';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-export default function App() {
+// Logging utility
+const log = {
+  info: (context: string, message: string, data?: any) => {
+    console.log(`[INFO] [${context}] ${message}`, data ? data : '');
+  },
+  warn: (context: string, message: string, data?: any) => {
+    console.warn(`[WARN] [${context}] ${message}`, data ? data : '');
+  },
+  error: (context: string, message: string, error?: any) => {
+    console.error(`[ERROR] [${context}] ${message}`, error ? error : '');
+  },
+  debug: (context: string, message: string, data?: any) => {
+    if (__DEV__) {
+      console.log(`[DEBUG] [${context}] ${message}`, data ? data : '');
+    }
+  },
+};
+
+function AppContent() {
+  // const insets = useSafeAreaInsets();
+  
   const [currentScreen, setCurrentScreen] = useState<'input' | 'reader'>('input');
   const [language, setLanguage] = useState('chinese');
   const [englishText, setEnglishText] = useState('');
@@ -29,19 +49,40 @@ export default function App() {
   const isLoadingArticle = useRef(false);
 
   const { saveOrUpdateArticle, checkAndPromptExport, getArticleById } = useArticleStorage();
-  const { renderedContent } = useArticleProcessor(englishText, targetText, language);
-
+  const { renderedContent, isProcessing, processingStats, hasContent: hasProcessedContent } = useArticleProcessor(englishText, targetText, language);
   const hasContent = englishText.trim() && targetText.trim();
   const showSaveButton = hasContent && articleTitle.trim() && (hasUnsavedChanges || !isSaved);
+
+  // Log initial mount
+  useEffect(() => {
+    log.info('App', 'Component mounted');
+    return () => {
+      log.info('App', 'Component unmounting');
+    };
+  }, []);
+
+  // Log screen changes
+  useEffect(() => {
+    log.info('Navigation', `Screen changed to: ${currentScreen}`);
+  }, [currentScreen]);
+
+  // Log article ID changes
+  useEffect(() => {
+    if (currentArticleId !== null) {
+      log.info('Article', `Current article ID set to: ${currentArticleId}`);
+    }
+  }, [currentArticleId]);
 
   // Check if currently loaded article still exists
   const checkArticleExists = useCallback(async () => {
     if (currentArticleId) {
+      log.debug('Article', 'Checking if current article exists', { articleId: currentArticleId });
       const article = await getArticleById(currentArticleId);
       if (!article) {
-        // Article was deleted, clear the form
-        console.log('Current article was deleted, clearing form');
+        log.warn('Article', 'Current article was deleted, clearing form', { articleId: currentArticleId });
         clearForm();
+      } else {
+        log.debug('Article', 'Article still exists', { articleId: currentArticleId });
       }
     }
   }, [currentArticleId]);
@@ -50,6 +91,7 @@ export default function App() {
   const checkForChanges = useCallback(() => {
     // Don't check for changes while loading an article
     if (isLoadingArticle.current) {
+      log.debug('Changes', 'Skipping change detection - article is loading');
       return;
     }
 
@@ -66,15 +108,20 @@ export default function App() {
       currentContent.target !== lastSavedContent.target ||
       currentContent.language !== lastSavedContent.language;
 
-    setHasUnsavedChanges(hasChanged);
+    if (hasChanged !== hasUnsavedChanges) {
+      log.debug('Changes', `Unsaved changes status: ${hasChanged}`);
+      setHasUnsavedChanges(hasChanged);
+    }
     
-    if (hasChanged) {
+    if (hasChanged && isSaved) {
+      log.debug('Changes', 'Content modified after save - marking as unsaved');
       setIsSaved(false);
     }
-  }, [articleTitle, englishText, targetText, language, lastSavedContent]);
+  }, [articleTitle, englishText, targetText, language, lastSavedContent, hasUnsavedChanges, isSaved]);
 
   // Show save notification with animation
   const showNotification = () => {
+    log.debug('Notification', 'Showing save notification');
     setShowSaveNotification(true);
     Animated.sequence([
       Animated.timing(fadeAnim, {
@@ -90,10 +137,12 @@ export default function App() {
       }),
     ]).start(() => {
       setShowSaveNotification(false);
+      log.debug('Notification', 'Save notification hidden');
     });
   };
 
   const clearForm = () => {
+    log.info('Form', 'Clearing form data', { hadArticleId: currentArticleId !== null });
     setEnglishText('');
     setTargetText('');
     setArticleTitle('');
@@ -108,12 +157,21 @@ export default function App() {
     });
     // Navigate back to input screen if on reader screen
     if (currentScreen === 'reader') {
+      log.info('Navigation', 'Returning to input screen after clear');
       setCurrentScreen('input');
     }
   };
 
   const handleSave = async () => {
     if (hasContent && articleTitle.trim()) {
+      log.info('Save', 'Attempting to save article', {
+        isUpdate: currentArticleId !== null,
+        articleId: currentArticleId,
+        titleLength: articleTitle.length,
+        englishTextLength: englishText.length,
+        targetTextLength: targetText.length,
+      });
+
       try {
         const id = await saveOrUpdateArticle({
           id: currentArticleId,
@@ -125,6 +183,7 @@ export default function App() {
         });
         
         if (id) {
+          log.info('Save', 'Article saved successfully', { articleId: id, wasUpdate: currentArticleId !== null });
           setCurrentArticleId(id);
           setLastSavedContent({
             title: articleTitle,
@@ -138,32 +197,50 @@ export default function App() {
           showNotification();
           checkAndPromptExport();
         } else {
+          log.error('Save', 'Failed to save article - no ID returned');
           Alert.alert('Error', 'Failed to save article. Please try again.');
         }
       } catch (error) {
-        console.error('Save error:', error);
+        log.error('Save', 'Exception during save operation', error);
         Alert.alert('Error', 'Failed to save article. Please try again.');
       }
+    } else {
+      log.warn('Save', 'Save attempted with missing content', {
+        hasContent,
+        hasTitle: articleTitle.trim().length > 0,
+      });
     }
   };
 
   const handleClear = () => {
+    log.info('Clear', 'Clear confirmation dialog shown');
     Alert.alert(
       'Clear Article',
       'Are you sure you want to clear all content? This cannot be undone.',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Cancel', 
+          style: 'cancel',
+          onPress: () => log.debug('Clear', 'Clear cancelled by user'),
+        },
         {
           text: 'Clear',
           style: 'destructive',
-          onPress: clearForm,
+          onPress: () => {
+            log.info('Clear', 'Clear confirmed by user');
+            clearForm();
+          },
         },
       ]
     );
   };
 
   const handleLoadArticle = (article: any) => {
-    console.log('Loading article:', article.id);
+    log.info('Load', 'Loading article', {
+      articleId: article.id,
+      title: article.title,
+      language: article.language,
+    });
     
     // Set loading flag to prevent change detection
     isLoadingArticle.current = true;
@@ -190,14 +267,13 @@ export default function App() {
     // Clear loading flag after a brief delay to ensure all state updates have processed
     setTimeout(() => {
       isLoadingArticle.current = false;
+      log.debug('Load', 'Article loading completed', { articleId: article.id });
     }, 100);
-    
-    console.log('Article loaded successfully');
   };
 
   // Add handler to check if article exists when coming back from history
   const handleHistoryClose = useCallback(() => {
-    // Check if the currently loaded article still exists
+    log.debug('History', 'History screen closed - checking article existence');
     checkArticleExists();
   }, [checkArticleExists]);
 
@@ -209,61 +285,73 @@ export default function App() {
   }, [checkForChanges]);
 
   const handleEnglishTextChange = useCallback((text: string) => {
+    log.debug('Input', 'English text changed', { length: text.length });
     setEnglishText(text);
   }, []);
 
   const handleTargetTextChange = useCallback((text: string) => {
+    log.debug('Input', 'Target text changed', { length: text.length });
     setTargetText(text);
   }, []);
 
   const handleTitleChange = useCallback((text: string) => {
+    log.debug('Input', 'Title changed', { length: text.length });
     setArticleTitle(text);
   }, []);
 
   const handleLanguageChange = useCallback((lang: string) => {
+    log.info('Language', `Language changed to: ${lang}`);
     setLanguage(lang);
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <View className="flex-1 bg-gray-50">
-        <StatusBar style="auto" />
+    <View className="flex-1 bg-gray-50">
+      <StatusBar style="auto" />
 
-        {currentScreen === 'input' ? (
-          <InputScreen
-            language={language}
-            articleTitle={articleTitle}
-            englishText={englishText}
-            targetText={targetText}
-            showSaveButton={showSaveButton}
-            isSaved={isSaved}
-            showSaveNotification={showSaveNotification}
-            fadeAnim={fadeAnim}
-            onLanguageChange={handleLanguageChange}
-            onTitleChange={handleTitleChange}
-            onEnglishTextChange={handleEnglishTextChange}
-            onTargetTextChange={handleTargetTextChange}
-            onLoadArticle={handleLoadArticle}
-            onHistoryClose={handleHistoryClose}
-            onNavigateToReader={() => setCurrentScreen('reader')}
-            onSave={handleSave}
-            onClear={handleClear}
-            hasContent={hasContent}
-          />
-        ) : (
-          <ReaderScreen
-            articleTitle={articleTitle}
-            renderedContent={renderedContent}
-            showSaveButton={showSaveButton}
-            isSaved={isSaved}
-            showSaveNotification={showSaveNotification}
-            fadeAnim={fadeAnim}
-            onSave={handleSave}
-            onClear={handleClear}
-            onBack={() => setCurrentScreen('input')}
-          />
-        )}
-      </View>
+      {currentScreen === 'input' ? (
+        <InputScreen
+          language={language}
+          articleTitle={articleTitle}
+          englishText={englishText}
+          targetText={targetText}
+          showSaveButton={showSaveButton}
+          isSaved={isSaved}
+          showSaveNotification={showSaveNotification}
+          fadeAnim={fadeAnim}
+          isProcessing={isProcessing}
+          processingStats={processingStats}
+          onLanguageChange={handleLanguageChange}
+          onTitleChange={handleTitleChange}
+          onEnglishTextChange={handleEnglishTextChange}
+          onTargetTextChange={handleTargetTextChange}
+          onLoadArticle={handleLoadArticle}
+          onHistoryClose={handleHistoryClose}
+          onNavigateToReader={() => setCurrentScreen('reader')}
+          onSave={handleSave}
+          onClear={handleClear}
+          hasContent={hasContent}
+        />
+      ) : (
+        <ReaderScreen
+          articleTitle={articleTitle}
+          renderedContent={renderedContent}
+          showSaveButton={showSaveButton}
+          isSaved={isSaved}
+          showSaveNotification={showSaveNotification}
+          fadeAnim={fadeAnim}
+          onSave={handleSave}
+          onClear={handleClear}
+          onBack={() => setCurrentScreen('input')}
+        />
+      )}
+    </View>
+  );
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
     </SafeAreaProvider>
   );
 }

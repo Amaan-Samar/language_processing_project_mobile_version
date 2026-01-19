@@ -1,7 +1,7 @@
 // import React from 'react';
 // import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
 // import * as Clipboard from 'expo-clipboard';
-// import { Copy,  ClipboardPaste, ChevronRight, ChevronDown, Pencil } from 'lucide-react-native';
+// import { Copy, Clipboard as ClipboardIcon, ChevronRight, ChevronDown, Edit2 } from 'lucide-react-native';
 
 // type Props = {
 //   articleTitle: string;
@@ -76,30 +76,30 @@
 //             {isExpanded && onPaste && (
 //               <TouchableOpacity
 //                 onPress={() => handlePaste(onPaste)}
+//                 className="p-1"
 //               >
-//                 <Text><ClipboardPaste size={20} color="gray" /></Text>
+//                 <ClipboardIcon size={20} color="#6B7280" />
 //               </TouchableOpacity>
 //             )}
 //             {isExpanded && hasValue && (
 //               <TouchableOpacity
-//               onPress={() => handleCopy(value, title)}
-//               className="px-2 py-1 bg-blue-50 rounded"
+//                 onPress={() => handleCopy(value, title)}
+//                 className="p-1"
 //               >
-//               <Text><Copy size={20} color="gray" /></Text>
+//                 <Copy size={20} color="#6B7280" />
 //               </TouchableOpacity>
 //             )}
 //             {isExpanded && (
-//               <TouchableOpacity onPress={onEdit} className="px-2 py-1">
-//                 <Text className="text-lg"><Pencil color="gray" size={20} /> </Text>
-                
+//               <TouchableOpacity onPress={onEdit} className="p-1">
+//                 <Edit2 size={20} color="#6B7280" />
 //               </TouchableOpacity>
 //             )}
 //             <TouchableOpacity
 //               onPress={() => onToggleSection(section)}
-//               className="px-2 py-1"
+//               className="p-1"
 //             >
 //               {isExpanded ? (
-//               <ChevronDown size={20} color="#374151" />
+//                 <ChevronDown size={20} color="#374151" />
 //               ) : (
 //                 <ChevronRight size={20} color="#374151" />
 //               )}
@@ -131,7 +131,7 @@
 //   };
 
 //   return (
-//     <View className="bg-white px-4 py-3 border-b border-gray-200">
+//     <View className="bg-white rounded-lg p-4 mt-4">
 //       {renderCollapsibleSection(
 //         'title',
 //         'Article Title',
@@ -166,15 +166,15 @@
 // }
 
 // const styles = {
-//   titleInput: 'border border-gray-300 rounded-lg p-3 bg-gray-50 text-gray-800 font-medium',
-//   input: 'border border-gray-300 rounded-lg p-3 bg-gray-50 text-gray-800',
+//   titleInput: 'rounded-lg p-3 bg-gray-50 text-gray-800 font-medium',
+//   input: 'rounded-lg p-3 bg-gray-50 text-gray-800',
 // };
 
 
 import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { Copy, Clipboard as ClipboardIcon, ChevronRight, ChevronDown, Edit2 } from 'lucide-react-native';
+import { Copy, Clipboard as ClipboardIcon, ChevronRight, ChevronDown, Edit2, CheckCircle2 } from 'lucide-react-native';
 
 type Props = {
   articleTitle: string;
@@ -192,6 +192,15 @@ type Props = {
   onEditTarget: () => void;
   onPasteEnglish: (text: string) => void;
   onPasteTarget: (text: string) => void;
+  // New props for processing feedback
+  isProcessing?: boolean;
+  processingStats?: {
+    hasEnglish: boolean;
+    hasTarget: boolean;
+    englishParagraphs: number;
+    targetParagraphs: number;
+    isComplete: boolean;
+  };
 };
 
 export default function InputArea({
@@ -206,6 +215,8 @@ export default function InputArea({
   onEditTarget,
   onPasteEnglish,
   onPasteTarget,
+  isProcessing = false,
+  processingStats,
 }: Props) {
   const handlePaste = async (setter: (text: string) => void) => {
     try {
@@ -227,6 +238,59 @@ export default function InputArea({
     } catch (error) {
       Alert.alert('Error', 'Failed to copy to clipboard');
     }
+  };
+
+  const renderProcessingIndicator = () => {
+    if (!processingStats) return null;
+
+    const { hasEnglish, hasTarget, englishParagraphs, targetParagraphs, isComplete } = processingStats;
+
+    if (!hasEnglish && !hasTarget) return null;
+
+    return (
+      <View className="mt-2 mb-1 px-3 py-2 bg-blue-50 rounded-lg border border-blue-200">
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center gap-2">
+            {isProcessing ? (
+              <>
+                <ActivityIndicator size="small" color="#3B82F6" />
+                <Text className="text-sm text-blue-700 font-medium">
+                  Processing article...
+                </Text>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={16} color="#10B981" />
+                <Text className="text-sm text-green-700 font-medium">
+                  Article ready
+                </Text>
+              </>
+            )}
+          </View>
+          
+          <View className="flex-row items-center gap-3">
+            {hasEnglish && (
+              <View className="flex-row items-center gap-1">
+                <Text className="text-xs text-gray-600">EN:</Text>
+                <Text className="text-xs font-semibold text-gray-700">{englishParagraphs}</Text>
+              </View>
+            )}
+            {hasTarget && (
+              <View className="flex-row items-center gap-1">
+                <Text className="text-xs text-gray-600">{language.slice(0, 2).toUpperCase()}:</Text>
+                <Text className="text-xs font-semibold text-gray-700">{targetParagraphs}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+        
+        {!isComplete && (
+          <Text className="text-xs text-gray-600 mt-1">
+            {!hasEnglish ? 'Add English text to complete' : 'Add translation to complete'}
+          </Text>
+        )}
+      </View>
+    );
   };
 
   const renderCollapsibleSection = (
@@ -334,6 +398,9 @@ export default function InputArea({
         onPasteTarget,
         true
       )}
+
+      {/* Processing indicator */}
+      {renderProcessingIndicator()}
     </View>
   );
 }
