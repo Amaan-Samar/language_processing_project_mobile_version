@@ -1,12 +1,13 @@
 import './global.css';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Animated, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef, StrictMode  } from 'react';
+import { View, Animated, Alert, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import InputScreen from './screens/InputScreen';
 import ReaderScreen from './screens/ReaderScreen';
-import { useArticleStorage } from './hooks/useArticleStorage';
+import { useArticleStorage, initializeDatabase } from './hooks/useArticleStorage';
 import { useArticleProcessor } from './hooks/useArticleProcessor';
+import { SQLiteProvider } from 'expo-sqlite';
 
 // Logging utility
 const log = {
@@ -350,8 +351,18 @@ function AppContent() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <AppContent />
-    </SafeAreaProvider>
+  <StrictMode>
+      <SQLiteProvider
+          databaseName="articles.db"
+          onInit={initializeDatabase}
+          options={{
+            enableChangeListener: true,
+          }}
+          >
+        <SafeAreaProvider>
+            <AppContent />
+        </SafeAreaProvider>
+      </SQLiteProvider>
+    </StrictMode >
   );
 }

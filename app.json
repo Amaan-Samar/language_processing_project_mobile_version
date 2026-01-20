@@ -12,7 +12,21 @@
       "tsconfigPaths": true
     },
 
-    "plugins": [],
+    "plugins": [
+      [
+        "expo-sqlite",
+        {
+          "enableFTS": true,
+          "useSQLCipher": false, 
+          "android": {
+            "enableFTS": false 
+          },
+          "ios": {
+            "customBuildFlags": ["-DSQLITE_ENABLE_DBSTAT_VTAB=1", "-DSQLITE_ENABLE_SNAPSHOT=1"]
+          }
+        }
+      ]
+    ],
 
     "orientation": "portrait",
     "icon": "./assets/pen.png",
