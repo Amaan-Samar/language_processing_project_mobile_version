@@ -21,7 +21,7 @@ export default function RenderedArticle({ content }: Props) {
           return (
             <View key={item.id} className={styles.targetParagraph}>
               <Text className={styles.targetText}>
-                {item.words.map((word) => {
+                {item.words?.map((word) => {
                   // For whitespace, just render the space
                   if (word.char === ' ') {
                     return <Text key={word.id}> </Text>;

@@ -7,11 +7,8 @@ import { RenderedContent } from '../types';
 // Import Lucide icons
 import { 
   ArrowLeft, 
-  Save, 
   Sparkles, 
   CheckCircle,
-  Bookmark,
-  BookmarkCheck
 } from 'lucide-react-native';
 
 type Props = {
