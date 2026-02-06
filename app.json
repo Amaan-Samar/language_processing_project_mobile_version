@@ -3,42 +3,41 @@
     "name": "Little Hanzi",
     "slug": "little-hanzi",
     "version": "1.0.0",
-
     "web": {
       "favicon": "./assets/pen.png"
     },
-
     "experiments": {
       "tsconfigPaths": true
     },
-
     "plugins": [
       [
         "expo-sqlite",
         {
           "enableFTS": true,
-          "useSQLCipher": false, 
+          "useSQLCipher": false,
           "android": {
-            "enableFTS": false 
+            "enableFTS": false
           },
           "ios": {
-            "customBuildFlags": ["-DSQLITE_ENABLE_DBSTAT_VTAB=1", "-DSQLITE_ENABLE_SNAPSHOT=1"]
+            "customBuildFlags": [
+              "-DSQLITE_ENABLE_DBSTAT_VTAB=1",
+              "-DSQLITE_ENABLE_SNAPSHOT=1"
+            ]
           }
         }
       ]
     ],
-
     "orientation": "portrait",
     "icon": "./assets/pen.png",
-
     "userInterfaceStyle": "light",
-
     "splash": {
       "image": "./assets/pen.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true
     },
@@ -46,6 +45,12 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/pen.png",
         "backgroundColor": "#ffffff"
+      },
+      "package": "com.anonymous.littlehanzi"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "39a3c11f-3d32-487a-aecd-ae0660f72d44"
       }
     }
   }

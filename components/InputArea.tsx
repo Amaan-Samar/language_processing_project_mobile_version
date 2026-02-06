@@ -171,6 +171,10 @@
 // };
 
 
+
+
+
+
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
